@@ -1,7 +1,11 @@
+using System;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using System.IO;
 
 public class ControladorOpciones : MonoBehaviour
 {
@@ -10,7 +14,6 @@ public class ControladorOpciones : MonoBehaviour
     public InputField sexoSeleccionado;
     public InputField opcionSeleccionada;
     public Image panelImage;
-    public GameObject panelMensaje;
     public Text mensaje;
     private int currentImageIndex = 0;
     private bool sexoSeSelecciono = false;
@@ -22,7 +25,6 @@ public class ControladorOpciones : MonoBehaviour
         opcionSeleccionada.interactable = false;
         botonContinuar.interactable = false;
         botonContinuar.onClick.AddListener(Continue);
-        panelMensaje.SetActive(false);
     }
 
     // Update is called once per frame
@@ -31,12 +33,31 @@ public class ControladorOpciones : MonoBehaviour
         ProcesarEntradaSexo();
         ProcesarEntradaOpcion();
     }
-    public void Continue()
+    void Continue()
     {
         currentImageIndex++;
-        if (currentImageIndex < imagenes.Count)
+        if (imagenes != null && currentImageIndex < imagenes.Count)
         {
             panelImage.sprite = imagenes[currentImageIndex].imagen;
+        }
+        else
+        {
+            GuardarRespuesta();
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+                Application.Quit();
+#endif
+        }
+    }
+
+    public void SeleccionarSexo(string sexo)
+    {
+        if (sexo == "H" || sexo == "M")
+        {
+            imagenes[currentImageIndex].sexoSeleccionado = sexo;
+            sexoSeleccionado.text = sexo;
+            sexoSeSelecciono = true;
         }
     }
 
@@ -45,13 +66,8 @@ public class ControladorOpciones : MonoBehaviour
         if (numeroOpcion >= 1 && numeroOpcion <= imagenes[currentImageIndex].opciones.Count)
         {
             imagenes[currentImageIndex].opcionSeleccionada = imagenes[currentImageIndex].opciones[numeroOpcion - 1];
-        }
-    }
-    public void SeleccionarSexo(string sexo)
-    {
-        if (sexo == "H" || sexo == "M")
-        {
-            imagenes[currentImageIndex].opcionSeleccionada = sexo;
+            opcionSeleccionada.text = imagenes[currentImageIndex].opciones[numeroOpcion - 1];
+            botonContinuar.interactable = true;
         }
     }
     void ProcesarEntradaSexo()
@@ -69,7 +85,7 @@ public class ControladorOpciones : MonoBehaviour
     void ProcesarEntradaOpcion()
     {
 
-        if (!sexoSeSelecciono) 
+        if (!sexoSeSelecciono)
         {
             return;
         }
@@ -79,9 +95,28 @@ public class ControladorOpciones : MonoBehaviour
             if (Input.GetKeyDown(i.ToString()))
             {
                 SeleccionarOpcion(i);
-                 botonContinuar.interactable = true;
+                botonContinuar.interactable = true;
             }
         }
+    }
+    public void GuardarRespuesta()
+    {
+        string path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "\\respuestas.csv";
+        using (StreamWriter writer = new StreamWriter(path, true))
+        {
+            for (int i = 0; i < imagenes.Count; i++)
+            {
+                string pregunta = (i + 1).ToString();
+                string sexo = imagenes[i].sexoSeleccionado;
+                Debug.Log(sexo);
+                string emocion = imagenes[i].opcionSeleccionada.ToLower().Normalize(NormalizationForm.FormD);
+                Debug.Log(emocion);
+                emocion = Regex.Replace(emocion, @"[^a-zA-z0-9\s]", "");
+
+                writer.WriteLine($"{pregunta},{sexo},{emocion}");
+            }
+        }
+
     }
 }
 
